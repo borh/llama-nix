@@ -8,6 +8,11 @@
         NIX_CFLAGS_COMPILE = "-march=native -mtune=native";
         cmakeFlags = oldAttrs.cmakeFlags ++ [
           "-DLLAMA_AVX512=ON"
+          "-DLLAMA_BLAS=1"
+          "-DLLAMA_BLAS_VENDOR=OpenBLAS"
+        ];
+        buildInputs = oldAttrs.buildInputs ++ [
+          pkgs.openblas
         ];
       }))
     pkgs.sentencepiece
