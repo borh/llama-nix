@@ -3,31 +3,40 @@
 {
   packages = [
     pkgs.git
+    pkgs.sentencepiece
     (inputs.llama-cpp.packages.${pkgs.system}.default.overrideAttrs
       (oldAttrs: rec {
         NIX_CFLAGS_COMPILE = "-march=native -mtune=native";
-        cmakeFlags = oldAttrs.cmakeFlags ++ [
+        cmakeFlags = oldAttrs.cmakeFlags ++ (if pkgs.stdenv.isDarwin then [
+          "-DLLAMA_METAL=ON"
+        ] else [
           "-DLLAMA_AVX512=ON"
           "-DLLAMA_BLAS=1"
           "-DLLAMA_BLAS_VENDOR=OpenBLAS"
-        ];
-        buildInputs = oldAttrs.buildInputs ++ [
-          pkgs.openblas
-        ];
+        ]);
+        buildInputs = oldAttrs.buildInputs ++
+          (if pkgs.stdenv.isLinux then [
+            pkgs.openblas
+          ] else [ ]) ++
+          [
+            pkgs.pkgconfig
+          ];
       }))
-    pkgs.sentencepiece
   ];
 
   scripts.llama-to-pt-all.exec = ''
-    convert.py models/7B/ 1
-    convert.py models/13B/ 1
-    convert.py models/30B/ 1
-    convert.py models/65B/ 1
+    convert.py models/7B/
+    convert.py models/13B/
+    convert.py models/30B/
+    convert.py models/65B/
   '';
 
   scripts.llama-quantize-all.exec = ''
     for model in $(find -L models -iname "*f16.bin*"|sort); do
       quantize $model ''${model/f16/q4_0} 2
+    done
+    for model in $(find -L models -iname "*f32.bin*"|sort); do
+      quantize $model ''${model/f32/q4_0} 2
     done
   '';
 
@@ -48,7 +57,10 @@
         accelerate
         transformers
         protobuf
+        # wizard
+        fire
       ]));
+    venv.enable = true;
   };
 
   # https://devenv.sh/pre-commit-hooks/
