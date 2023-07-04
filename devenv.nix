@@ -7,16 +7,24 @@
     (inputs.llama-cpp.packages.${pkgs.system}.default.overrideAttrs
       (oldAttrs: rec {
         NIX_CFLAGS_COMPILE = "-march=native -mtune=native";
-        cmakeFlags = oldAttrs.cmakeFlags ++ (if pkgs.stdenv.isDarwin then [
-          "-DLLAMA_METAL=ON"
-        ] else [
-          "-DLLAMA_AVX512=ON"
+        cmakeFlags = oldAttrs.cmakeFlags ++ (if pkgs.stdenv.isDarwin then [ ] else [
           "-DLLAMA_BLAS=1"
           "-DLLAMA_BLAS_VENDOR=OpenBLAS"
+
+          # For AVX512-capable hardware
+          # "-DLLAMA_AVX512=ON"
+
+          # For CUDA support: (NOTE: run with -ngl 10000 etc.)
+          "-DLLAMA_CUDA_DMMV_F16=true"
+          "-DLLAMA_CUDA_DMMV_X=64"
+          "-DLLAMA_CUDA_DMMV_Y=2"
+          "-DLLAMA_CUBLAS=on"
         ]);
         buildInputs = oldAttrs.buildInputs ++
           (if pkgs.stdenv.isLinux then [
             pkgs.openblas
+            pkgs.cudaPackages.cudatoolkit
+            pkgs.cudaPackages.libcublas
           ] else [ ]) ++
           [
             pkgs.pkgconfig
