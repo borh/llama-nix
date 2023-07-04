@@ -1,34 +1,37 @@
-{ pkgs, inputs, ... }:
+{ pkgs, inputs, config, ... }:
 
 {
+  # Modify to hardware
+  env.USE_CUDA = "false";
+  env.USE_AVX512 = "true";
+
   packages = [
     pkgs.git
     pkgs.sentencepiece
     (inputs.llama-cpp.packages.${pkgs.system}.default.overrideAttrs
       (oldAttrs: rec {
         NIX_CFLAGS_COMPILE = "-march=native -mtune=native";
-        cmakeFlags = oldAttrs.cmakeFlags ++ (if pkgs.stdenv.isDarwin then [ ] else [
+        cmakeFlags = oldAttrs.cmakeFlags ++ (if pkgs.stdenv.isLinux then [
           "-DLLAMA_BLAS=1"
           "-DLLAMA_BLAS_VENDOR=OpenBLAS"
-
-          # For AVX512-capable hardware
-          # "-DLLAMA_AVX512=ON"
-
+        ] else [ ]) ++ (if config.env.USE_CUDA == "true" then [
           # For CUDA support: (NOTE: run with -ngl 10000 etc.)
           "-DLLAMA_CUDA_DMMV_F16=true"
           "-DLLAMA_CUDA_DMMV_X=64"
           "-DLLAMA_CUDA_DMMV_Y=2"
           "-DLLAMA_CUBLAS=on"
-        ]);
-        buildInputs = oldAttrs.buildInputs ++
-          (if pkgs.stdenv.isLinux then [
-            pkgs.openblas
-            pkgs.cudaPackages.cudatoolkit
-            pkgs.cudaPackages.libcublas
-          ] else [ ]) ++
-          [
-            pkgs.pkgconfig
-          ];
+        ] else [ ]) ++ (if config.env.USE_AVX512 == "true" then [
+          # For AVX512-capable hardware
+          "-DLLAMA_AVX512=ON"
+        ] else [ ]);
+        buildInputs = oldAttrs.buildInputs ++ [
+          pkgs.pkgconfig
+        ] ++ (if pkgs.stdenv.isLinux then [
+          pkgs.openblas
+        ] else [ ]) ++ (if config.env.USE_CUDA == "true" then [
+          pkgs.cudaPackages.cudatoolkit
+          pkgs.cudaPackages.libcublas
+        ] else [ ]);
       }))
   ];
 
